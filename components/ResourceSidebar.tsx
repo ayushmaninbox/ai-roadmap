@@ -1,8 +1,15 @@
-'use client';
+"use client";
 
-import { X, Video, FileText, BookOpen, ExternalLink, Loader2 } from 'lucide-react';
-import { RoadmapNodeData, Resource } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import {
+  X,
+  Video,
+  FileText,
+  BookOpen,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
+import { RoadmapNodeData, Resource } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface ResourceSidebarProps {
   nodeData: RoadmapNodeData | null;
@@ -21,13 +28,13 @@ export default function ResourceSidebar({
 
   const getResourceIcon = (type: string) => {
     switch (type) {
-      case 'youtube':
+      case "youtube":
         return <Video className="w-4 h-4" />;
-      case 'documentation':
+      case "documentation":
         return <BookOpen className="w-4 h-4" />;
-      case 'article':
-      case 'tutorial':
-      case 'course':
+      case "article":
+      case "tutorial":
+      case "course":
         return <FileText className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
@@ -49,9 +56,9 @@ export default function ResourceSidebar({
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed right-0 top-0 h-full w-full md:w-[400px] bg-white shadow-2xl z-50',
-          'transform transition-transform duration-300 ease-in-out overflow-y-auto',
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+          "fixed right-0 top-0 h-full w-full md:w-[400px] bg-white shadow-2xl z-50",
+          "transform transition-transform duration-300 ease-in-out overflow-y-auto",
+          isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
@@ -109,65 +116,74 @@ export default function ResourceSidebar({
             )}
 
             {/* No resources state */}
-            {!isLoading && (!nodeData.resources || nodeData.resources.length === 0) && (
-              <div className="py-8 text-center">
-                <p className="text-sm text-gray-500">
-                  No resources available for this topic.
-                </p>
-              </div>
-            )}
+            {!isLoading &&
+              (!nodeData.resources || nodeData.resources.length === 0) && (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-gray-500">
+                    No resources available for this topic.
+                  </p>
+                </div>
+              )}
 
             {/* Resources list */}
-            {!isLoading && nodeData.resources && nodeData.resources.length > 0 && (
-              <div className="space-y-3">
-                {nodeData.resources.map((resource: Resource) => (
-                  <a
-                    key={resource.id}
-                    href={resource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-3 border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="p-2 bg-blue-50 rounded-md text-blue-600 group-hover:bg-blue-100 transition-colors">
-                          {getResourceIcon(resource.type)}
+            {!isLoading &&
+              nodeData.resources &&
+              nodeData.resources.length > 0 && (
+                <div className="space-y-3">
+                  {nodeData.resources.map((resource: Resource) => (
+                    <a
+                      key={resource.id}
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-3 border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-1">
+                          <div className="p-2 bg-blue-50 rounded-md text-blue-600 group-hover:bg-blue-100 transition-colors">
+                            {getResourceIcon(resource.type)}
+                          </div>
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-blue-600">
+                              {getResourceTypeLabel(resource.type)}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2">
+                            {resource.title}
+                          </h4>
+                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                            {resource.description}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span>{resource.source}</span>
+                            {resource.type === "youtube" &&
+                              resource.metadata &&
+                              "duration" in resource.metadata &&
+                              resource.metadata.duration && (
+                                <>
+                                  <span>•</span>
+                                  <span>{resource.metadata.duration}</span>
+                                </>
+                              )}
+                            {resource.type === "youtube" &&
+                              resource.metadata &&
+                              "views" in resource.metadata &&
+                              resource.metadata.views && (
+                                <>
+                                  <span>•</span>
+                                  <span>{resource.metadata.views} views</span>
+                                </>
+                              )}
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-blue-600">
-                            {getResourceTypeLabel(resource.type)}
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2">
-                          {resource.title}
-                        </h4>
-                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                          {resource.description}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span>{resource.source}</span>
-                          {resource.metadata?.duration && (
-                            <>
-                              <span>•</span>
-                              <span>{resource.metadata.duration}</span>
-                            </>
-                          )}
-                          {resource.metadata?.views && (
-                            <>
-                              <span>•</span>
-                              <span>{resource.metadata.views} views</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
+                    </a>
+                  ))}
+                </div>
+              )}
           </div>
         </div>
       </div>

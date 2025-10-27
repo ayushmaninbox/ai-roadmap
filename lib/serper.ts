@@ -1,6 +1,6 @@
-import { Resource, ResourceType } from './types';
+import { Resource, ResourceType } from "./types";
 
-const SERPER_API_URL = 'https://google.serper.dev/search';
+const SERPER_API_URL = "https://google.serper.dev/search";
 
 /**
  * Fetches web resources (docs, articles, tutorials) for a given topic using Serper.dev
@@ -10,21 +10,21 @@ export async function fetchWebResources(query: string): Promise<Resource[]> {
   const apiKey = process.env.SERPER_API_KEY;
 
   if (!apiKey) {
-    throw new Error('SERPER_API_KEY environment variable is not set');
+    throw new Error("SERPER_API_KEY environment variable is not set");
   }
 
   try {
     const response = await fetch(SERPER_API_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'X-API-KEY': apiKey,
-        'Content-Type': 'application/json',
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         q: `${query} tutorial guide documentation`,
         num: 20,
-        gl: 'us',
-        hl: 'en',
+        gl: "us",
+        hl: "en",
       }),
     });
 
@@ -42,23 +42,23 @@ export async function fetchWebResources(query: string): Promise<Resource[]> {
     // Score and filter results
     const scoredResults = results
       .map((result: any) => {
-        const link = result.link || '';
-        const title = result.title || '';
-        const snippet = result.snippet || '';
+        const link = result.link || "";
+        const title = result.title || "";
+        const snippet = result.snippet || "";
         const domain = extractDomain(link);
 
         // Skip if no meaningful data
         if (!link || !title || !snippet) return null;
 
         // Skip video sites (handled by YouTube API)
-        if (domain.includes('youtube.com') || domain.includes('vimeo.com')) {
+        if (domain.includes("youtube.com") || domain.includes("vimeo.com")) {
           return null;
         }
 
         // Skip social media (except Stack Overflow)
         if (
-          ['twitter.com', 'facebook.com', 'instagram.com', 'reddit.com'].some(site =>
-            domain.includes(site)
+          ["twitter.com", "facebook.com", "instagram.com", "reddit.com"].some(
+            (site) => domain.includes(site)
           )
         ) {
           return null;
@@ -72,31 +72,33 @@ export async function fetchWebResources(query: string): Promise<Resource[]> {
 
         // Official documentation gets highest priority
         if (
-          domain.includes('docs.') ||
-          domain.includes('documentation') ||
-          title.toLowerCase().includes('official')
+          domain.includes("docs.") ||
+          domain.includes("documentation") ||
+          title.toLowerCase().includes("official")
         ) {
           score += 10;
         }
 
         // Well-known educational sites
         const educationalDomains = [
-          'developer.mozilla.org',
-          'w3schools.com',
-          'freecodecamp.org',
-          'dev.to',
-          'medium.com',
-          'stackoverflow.com',
-          'github.com',
+          "developer.mozilla.org",
+          "w3schools.com",
+          "freecodecamp.org",
+          "dev.to",
+          "medium.com",
+          "stackoverflow.com",
+          "github.com",
         ];
-        if (educationalDomains.some(site => domain.includes(site))) {
+        if (educationalDomains.some((site) => domain.includes(site))) {
           score += 5;
         }
 
         // Title relevance (keyword match)
-        const queryWords = query.toLowerCase().split(' ');
+        const queryWords = query.toLowerCase().split(" ");
         const titleLower = title.toLowerCase();
-        const matchCount = queryWords.filter(word => titleLower.includes(word)).length;
+        const matchCount = queryWords.filter((word) =>
+          titleLower.includes(word)
+        ).length;
         score += matchCount;
 
         // Description quality (prefer 50-300 chars)
@@ -112,17 +114,19 @@ export async function fetchWebResources(query: string): Promise<Resource[]> {
           domain,
         };
       })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
+      .filter((item: any): item is NonNullable<typeof item> => item !== null);
 
     // Sort by score
-    scoredResults.sort((a, b) => b.score - a.score);
+    scoredResults.sort((a: any, b: any) => b.score - a.score);
 
     // Select top results with variety
     const selected: typeof scoredResults = [];
     const usedDomains = new Set<string>();
 
     // First, add official documentation if exists
-    const officialDoc = scoredResults.find(r => r.type === 'documentation' && r.score >= 10);
+    const officialDoc = scoredResults.find(
+      (r: any) => r.type === "documentation" && r.score >= 10
+    );
     if (officialDoc) {
       selected.push(officialDoc);
       usedDomains.add(officialDoc.domain);
@@ -149,7 +153,7 @@ export async function fetchWebResources(query: string): Promise<Resource[]> {
     }
 
     // Transform to Resource format
-    return selected.slice(0, 3).map((item, index) => {
+    return selected.slice(0, 3).map((item: any, index: number) => {
       const result = item.result;
       return {
         id: `resource_web_${index + 1}`,
@@ -162,8 +166,8 @@ export async function fetchWebResources(query: string): Promise<Resource[]> {
       };
     });
   } catch (error) {
-    console.error('Serper API error:', error);
-    throw new Error('Failed to fetch web resources');
+    console.error("Serper API error:", error);
+    throw new Error("Failed to fetch web resources");
   }
 }
 
@@ -173,9 +177,9 @@ export async function fetchWebResources(query: string): Promise<Resource[]> {
 function extractDomain(url: string): string {
   try {
     const parsed = new URL(url);
-    return parsed.hostname.replace('www.', '');
+    return parsed.hostname.replace("www.", "");
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -188,29 +192,33 @@ function detectResourceType(domain: string, title: string): ResourceType {
 
   // Documentation
   if (
-    lowerDomain.includes('docs') ||
-    lowerDomain.includes('documentation') ||
-    lowerDomain.includes('api')
+    lowerDomain.includes("docs") ||
+    lowerDomain.includes("documentation") ||
+    lowerDomain.includes("api")
   ) {
-    return 'documentation';
+    return "documentation";
   }
 
   // Articles
   if (
-    lowerDomain.includes('dev.to') ||
-    lowerDomain.includes('medium.com') ||
-    lowerDomain.includes('blog')
+    lowerDomain.includes("dev.to") ||
+    lowerDomain.includes("medium.com") ||
+    lowerDomain.includes("blog")
   ) {
-    return 'article';
+    return "article";
   }
 
   // Tutorials
-  if (lowerTitle.includes('tutorial') || lowerTitle.includes('guide') || lowerTitle.includes('course')) {
-    return 'tutorial';
+  if (
+    lowerTitle.includes("tutorial") ||
+    lowerTitle.includes("guide") ||
+    lowerTitle.includes("course")
+  ) {
+    return "tutorial";
   }
 
   // Default to article
-  return 'article';
+  return "article";
 }
 
 /**
@@ -218,5 +226,5 @@ function detectResourceType(domain: string, title: string): ResourceType {
  */
 function truncateTitle(title: string, maxLength: number = 80): string {
   if (title.length <= maxLength) return title;
-  return title.substring(0, maxLength) + '...';
+  return title.substring(0, maxLength) + "...";
 }
