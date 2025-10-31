@@ -56,33 +56,33 @@ export default function ResourceSidebar({
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed right-0 top-0 h-full w-full md:w-[400px] bg-white shadow-2xl z-50",
+          "fixed right-0 top-0 h-full w-full md:w-[380px] bg-white border-l z-50",
           "transform transition-transform duration-300 ease-in-out overflow-y-auto",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
+        <div className="sticky top-0 bg-white border-b p-4 z-10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900 leading-tight">
+              <h2 className="text-base font-semibold text-foreground leading-tight">
                 {nodeData.label}
               </h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs px-2 py-1 bg-gray-100 rounded-md text-gray-600">
+                <span className="text-[11px] px-2 py-0.5 bg-gray-100 rounded text-gray-700">
                   Level {nodeData.level}
                 </span>
-                <span className="text-xs px-2 py-1 bg-blue-100 rounded-md text-blue-700 capitalize">
+                <span className="text-[11px] px-2 py-0.5 bg-gray-900 text-white rounded capitalize">
                   {nodeData.category}
                 </span>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+              className="p-2 hover:bg-gray-100 rounded-md transition-colors shrink-0"
               aria-label="Close sidebar"
             >
-              <X className="w-5 h-5 text-gray-600" />
+              <X className="w-5 h-5 text-foreground/70" />
             </button>
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function ResourceSidebar({
 
           {/* Resources Section */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            <h3 className="text-xs font-medium text-foreground mb-2">
               Resources
             </h3>
 
@@ -109,8 +109,10 @@ export default function ResourceSidebar({
             {isLoading && (
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
-                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Loading resources...</p>
+                  <Loader2 className="w-6 h-6 text-foreground/70 animate-spin mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">
+                    Loading resources...
+                  </p>
                 </div>
               </div>
             )}
@@ -119,7 +121,7 @@ export default function ResourceSidebar({
             {!isLoading &&
               (!nodeData.resources || nodeData.resources.length === 0) && (
                 <div className="py-8 text-center">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     No resources available for this topic.
                   </p>
                 </div>
@@ -129,34 +131,34 @@ export default function ResourceSidebar({
             {!isLoading &&
               nodeData.resources &&
               nodeData.resources.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {nodeData.resources.map((resource: Resource) => (
                     <a
                       key={resource.id}
                       href={resource.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block p-3 border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group"
+                      className="block p-3 border rounded-lg hover:bg-gray-50 transition-colors group"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 mt-1">
-                          <div className="p-2 bg-blue-50 rounded-md text-blue-600 group-hover:bg-blue-100 transition-colors">
+                        <div className="shrink-0 mt-1">
+                          <div className="p-2 bg-gray-100 rounded text-foreground/70">
                             {getResourceIcon(resource.type)}
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-blue-600">
+                            <span className="text-[11px] font-medium text-foreground/70">
                               {getResourceTypeLabel(resource.type)}
                             </span>
                           </div>
-                          <h4 className="text-sm font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2">
+                          <h4 className="text-sm font-medium text-foreground mb-1 line-clamp-2">
                             {resource.title}
                           </h4>
-                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
                             {resource.description}
                           </p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                             <span>{resource.source}</span>
                             {resource.type === "youtube" &&
                               resource.metadata &&
@@ -178,7 +180,7 @@ export default function ResourceSidebar({
                               )}
                           </div>
                         </div>
-                        <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <ExternalLink className="w-4 h-4 text-foreground/40 shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </a>
                   ))}

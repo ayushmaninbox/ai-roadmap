@@ -1,38 +1,47 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, Download, Maximize2, LayoutGrid, CheckCircle2 } from 'lucide-react';
-import Link from 'next/link';
-import { Node } from 'reactflow';
-import RoadmapCanvas from '@/components/RoadmapCanvas';
-import TopicNavigationSidebar from '@/components/TopicNavigationSidebar';
-import EmbeddedResourceViewer from '@/components/EmbeddedResourceViewer';
-import LoadingOverlay from '@/components/LoadingOverlay';
-import ErrorMessage from '@/components/ErrorMessage';
-import { Button } from '@/components/ui/button';
-import { getRoadmap, saveRoadmap, updateRoadmap } from '@/lib/storage';
-import { Roadmap, RoadmapNodeData, Resource } from '@/lib/types';
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  Save,
+  Download,
+  Maximize2,
+  LayoutGrid,
+  CheckCircle2,
+} from "lucide-react";
+import Link from "next/link";
+import { Node } from "reactflow";
+import RoadmapCanvas from "@/components/RoadmapCanvas";
+import TopicNavigationSidebar from "@/components/TopicNavigationSidebar";
+import EmbeddedResourceViewer from "@/components/EmbeddedResourceViewer";
+import LoadingOverlay from "@/components/LoadingOverlay";
+import ErrorMessage from "@/components/ErrorMessage";
+import { Button } from "@/components/ui/button";
+import { getRoadmap, saveRoadmap, updateRoadmap } from "@/lib/storage";
+import { Roadmap, RoadmapNodeData, Resource } from "@/lib/types";
 
 export default function RoadmapPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params.id as string;
-  const topic = searchParams.get('topic');
+  const topic = searchParams.get("topic");
 
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
-  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(
+    null
+  );
   const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [completedNodes, setCompletedNodes] = useState<Set<string>>(new Set());
   const [showTreeView, setShowTreeView] = useState(false);
 
   useEffect(() => {
     const loadRoadmap = async () => {
-      if (id === 'new' && topic) {
+      if (id === "new" && topic) {
         await generateRoadmap(topic);
       } else {
         const existingRoadmap = getRoadmap(id);
@@ -45,10 +54,10 @@ export default function RoadmapPage() {
           }
           setIsLoading(false);
         } else {
-          setError('Roadmap not found');
+          setError("Roadmap not found");
           setIsLoading(false);
           setTimeout(() => {
-            router.push('/');
+            router.push("/");
           }, 2000);
         }
       }
@@ -62,10 +71,10 @@ export default function RoadmapPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/generate-roadmap', {
-        method: 'POST',
+      const response = await fetch("/api/generate-roadmap", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ topic: topicToGenerate }),
       });
@@ -73,7 +82,7 @@ export default function RoadmapPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to generate roadmap');
+        throw new Error(data.error || "Failed to generate roadmap");
       }
 
       const newRoadmap = data.roadmap;
@@ -89,13 +98,18 @@ export default function RoadmapPage() {
       router.replace(`/roadmap/${newRoadmap.id}`);
       setIsLoading(false);
     } catch (err) {
-      console.error('Error generating roadmap:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate roadmap');
+      console.error("Error generating roadmap:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to generate roadmap"
+      );
       setIsLoading(false);
     }
   };
 
-  const fetchResourcesForNode = async (node: Node<RoadmapNodeData>, currentRoadmap: Roadmap) => {
+  const fetchResourcesForNode = async (
+    node: Node<RoadmapNodeData>,
+    currentRoadmap: Roadmap
+  ) => {
     if (node.data.resourcesFetched) {
       if (node.data.resources && node.data.resources.length > 0) {
         setSelectedResource(node.data.resources[0]);
@@ -106,10 +120,10 @@ export default function RoadmapPage() {
     setIsLoadingResources(true);
 
     try {
-      const response = await fetch('/api/fetch-resources', {
-        method: 'POST',
+      const response = await fetch("/api/fetch-resources", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           nodeTitle: node.data.label,
@@ -147,7 +161,7 @@ export default function RoadmapPage() {
         }
       }
     } catch (err) {
-      console.error('Error fetching resources:', err);
+      console.error("Error fetching resources:", err);
     } finally {
       setIsLoadingResources(false);
     }
@@ -213,11 +227,11 @@ export default function RoadmapPage() {
   const handleExport = () => {
     if (roadmap) {
       const dataStr = JSON.stringify(roadmap, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const dataBlob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = `${roadmap.topic.replace(/\s+/g, '-')}-roadmap.json`;
+      link.download = `${roadmap.topic.replace(/\s+/g, "-")}-roadmap.json`;
       link.click();
       URL.revokeObjectURL(url);
     }
@@ -233,7 +247,7 @@ export default function RoadmapPage() {
   }
 
   if (error) {
-    return <ErrorMessage message={error} onRetry={() => router.push('/')} />;
+    return <ErrorMessage message={error} onRetry={() => router.push("/")} />;
   }
 
   if (!roadmap) {
@@ -247,20 +261,22 @@ export default function RoadmapPage() {
   const isLastTopic = currentIndex === sortedNodes.length - 1;
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-cyan-50/30">
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 px-6 py-4 flex items-center justify-between shadow-sm">
+    <div className="h-screen flex flex-col bg-background">
+      <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/">
-            <Button variant="ghost" size="sm" className="hover:bg-blue-50">
+            <Button variant="ghost" size="sm">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Home
             </Button>
           </Link>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            <h1 className="text-base font-semibold text-foreground">
               {roadmap.title}
             </h1>
-            <p className="text-xs text-gray-500">{roadmap.nodeCount} topics</p>
+            <p className="text-xs text-muted-foreground">
+              {roadmap.nodeCount} topics
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -268,16 +284,19 @@ export default function RoadmapPage() {
             variant="outline"
             size="sm"
             onClick={() => setShowTreeView(!showTreeView)}
-            className="hover:bg-blue-50"
           >
-            {showTreeView ? <Maximize2 className="w-4 h-4 mr-2" /> : <LayoutGrid className="w-4 h-4 mr-2" />}
-            {showTreeView ? 'Hide Tree' : 'Show Tree'}
+            {showTreeView ? (
+              <Maximize2 className="w-4 h-4 mr-2" />
+            ) : (
+              <LayoutGrid className="w-4 h-4 mr-2" />
+            )}
+            {showTreeView ? "Hide Tree" : "Show Tree"}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleSave} className="hover:bg-blue-50">
+          <Button variant="outline" size="sm" onClick={handleSave}>
             <Save className="w-4 h-4 mr-2" />
             Save
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport} className="hover:bg-blue-50">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -285,42 +304,46 @@ export default function RoadmapPage() {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-80 flex-shrink-0">
+        <div className="w-80 shrink-0">
           <TopicNavigationSidebar
             nodes={roadmap.nodes}
             currentNodeId={currentNodeId}
             completedNodes={completedNodes}
             onNodeSelect={handleNodeSelect}
+            edges={roadmap.edges}
           />
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden">
           {currentNode && (
-            <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-200/50 px-8 py-6 shadow-sm">
+            <div className="shrink-0 bg-white border-b px-8 py-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold rounded-full">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2.5 py-1 bg-gray-900 text-white text-xs font-medium rounded-full">
                       Topic {currentNode.data.order}
                     </span>
-                    <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full capitalize">
+                    <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full capitalize">
                       {currentNode.data.category}
                     </span>
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-xl font-semibold text-foreground mb-1">
                     {currentNode.data.label}
                   </h2>
-                  <p className="text-gray-600 leading-relaxed">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     {currentNode.data.description}
                   </p>
                 </div>
                 <Button
                   onClick={handleMarkComplete}
-                  variant={completedNodes.has(currentNodeId!) ? 'default' : 'outline'}
-                  className={completedNodes.has(currentNodeId!) ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600' : 'hover:bg-green-50'}
+                  variant={
+                    completedNodes.has(currentNodeId!) ? "default" : "outline"
+                  }
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  {completedNodes.has(currentNodeId!) ? 'Completed' : 'Mark Complete'}
+                  {completedNodes.has(currentNodeId!)
+                    ? "Completed"
+                    : "Mark complete"}
                 </Button>
               </div>
             </div>
@@ -348,9 +371,13 @@ export default function RoadmapPage() {
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                      <p className="text-lg font-medium mb-2">No resources available</p>
-                      <p className="text-sm">Resources will appear here once loaded</p>
+                    <div className="text-center text-muted-foreground">
+                      <p className="text-sm font-medium mb-1">
+                        No resources available
+                      </p>
+                      <p className="text-xs">
+                        Resources will appear here once loaded
+                      </p>
                     </div>
                   </div>
                 )}
@@ -358,49 +385,55 @@ export default function RoadmapPage() {
             )}
           </div>
 
-          {currentNode && currentNode.data.resources && currentNode.data.resources.length > 1 && !showTreeView && (
-            <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-t border-gray-200/50 px-8 py-4">
-              <p className="text-xs font-semibold text-gray-700 mb-3">Available Resources</p>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {currentNode.data.resources.map((resource) => (
-                  <button
-                    key={resource.id}
-                    onClick={() => setSelectedResource(resource)}
-                    className={`
-                      flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all
-                      ${selectedResource?.id === resource.id
-                        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                        : 'bg-white border border-gray-200 text-gray-700 hover:border-blue-300 hover:shadow-md'
+          {currentNode &&
+            currentNode.data.resources &&
+            currentNode.data.resources.length > 1 &&
+            !showTreeView && (
+              <div className="shrink-0 bg-white border-t px-8 py-4">
+                <p className="text-xs font-medium text-foreground mb-2">
+                  Available resources
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {currentNode.data.resources.map((resource) => (
+                    <button
+                      key={resource.id}
+                      onClick={() => setSelectedResource(resource)}
+                      className={`
+                      shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border
+                      ${
+                        selectedResource?.id === resource.id
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
                       }
                     `}
-                  >
-                    <span className="capitalize">{resource.type}</span>
-                    {resource.type === 'youtube' && resource.metadata && 'duration' in resource.metadata && resource.metadata.duration && (
-                      <span className="ml-2 opacity-70">• {resource.metadata.duration}</span>
-                    )}
-                  </button>
-                ))}
+                    >
+                      <span className="capitalize">{resource.type}</span>
+                      {resource.type === "youtube" &&
+                        resource.metadata &&
+                        "duration" in resource.metadata &&
+                        resource.metadata.duration && (
+                          <span className="ml-2 opacity-70">
+                            • {resource.metadata.duration}
+                          </span>
+                        )}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex-shrink-0 bg-white/80 backdrop-blur-md border-t border-gray-200/50 px-8 py-4 flex items-center justify-between">
+          <div className="shrink-0 bg-white border-t px-8 py-4 flex items-center justify-between">
             <Button
               variant="outline"
               onClick={handlePreviousTopic}
               disabled={isFirstTopic}
-              className="hover:bg-blue-50"
             >
               Previous Topic
             </Button>
-            <div className="text-sm text-gray-600">
+            <div className="text-xs text-muted-foreground">
               {currentIndex + 1} / {sortedNodes.length}
             </div>
-            <Button
-              onClick={handleNextTopic}
-              disabled={isLastTopic}
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-            >
+            <Button onClick={handleNextTopic} disabled={isLastTopic}>
               Next Topic
             </Button>
           </div>
@@ -410,7 +443,9 @@ export default function RoadmapPage() {
   );
 }
 
-function getSortedNodes(nodes: Node<RoadmapNodeData>[]): Node<RoadmapNodeData>[] {
+function getSortedNodes(
+  nodes: Node<RoadmapNodeData>[]
+): Node<RoadmapNodeData>[] {
   return [...nodes].sort((a, b) => {
     if (a.data.level !== b.data.level) {
       return a.data.level - b.data.level;

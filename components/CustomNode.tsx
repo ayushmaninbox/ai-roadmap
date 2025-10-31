@@ -1,78 +1,74 @@
-import { memo } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
-import { RoadmapNodeData } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { memo } from "react";
+import { Handle, Position, NodeProps } from "reactflow";
+import { RoadmapNodeData } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const CustomNode = memo(({ data, selected }: NodeProps<RoadmapNodeData>) => {
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'fundamentals':
-        return 'from-blue-500 to-cyan-500 text-white';
-      case 'intermediate':
-        return 'from-cyan-500 to-emerald-500 text-white';
-      case 'advanced':
-        return 'from-emerald-500 to-teal-500 text-white';
-      case 'tools':
-        return 'from-amber-500 to-orange-500 text-white';
-      case 'practice':
-        return 'from-pink-500 to-rose-500 text-white';
-      case 'projects':
-        return 'from-violet-500 to-purple-500 text-white';
-      default:
-        return 'from-gray-500 to-slate-500 text-white';
-    }
-  };
-
-  const categoryColor = getCategoryColor(data.category);
+  const categoryAccent = getCategoryAccent(data.category);
 
   return (
-    <div className="relative group">
-      <div className={cn(
-        'absolute inset-0 rounded-2xl blur-md opacity-0 group-hover:opacity-60 transition-all duration-300',
-        `bg-gradient-to-r ${categoryColor.split(' ')[0]} ${categoryColor.split(' ')[1]}`
-      )} />
+    <div className="relative">
       <div
         className={cn(
-          'relative px-5 py-4 rounded-2xl border-2 shadow-lg transition-all duration-300 min-w-[200px] max-w-[240px] backdrop-blur-sm',
-          `bg-gradient-to-r ${categoryColor}`,
-          selected && 'ring-4 ring-white ring-offset-2 shadow-2xl scale-110 z-50'
+          "relative px-4 py-3 rounded-lg border bg-white transition-colors min-w-[200px] max-w-[260px]",
+          selected && "ring-2 ring-gray-900"
         )}
       >
         <Handle
           type="target"
           position={Position.Top}
-          className="w-3 h-3 !bg-white shadow-md"
+          className="w-2.5 h-2.5 !bg-gray-900"
         />
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-full">
-              #{data.order}
+            <span
+              className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded-sm"
+              style={{ backgroundColor: categoryAccent }}
+            >
+              {data.category}
             </span>
-            <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded-full capitalize">
+            <span className="text-[10px] text-foreground/60">
               L{data.level}
             </span>
           </div>
 
-          <h3 className="font-bold text-sm leading-tight">
+          <h3 className="font-medium text-sm leading-snug text-foreground">
             {data.label}
           </h3>
 
-          <p className="text-xs opacity-90 capitalize font-medium">
-            {data.category}
-          </p>
+          <p className="text-[11px] text-foreground/60">#{data.order}</p>
         </div>
 
         <Handle
           type="source"
           position={Position.Bottom}
-          className="w-3 h-3 !bg-white shadow-md"
+          className="w-2.5 h-2.5 !bg-gray-900"
         />
       </div>
     </div>
   );
 });
 
-CustomNode.displayName = 'CustomNode';
+function getCategoryAccent(category: string): string {
+  switch (category) {
+    case "fundamentals":
+      return "#111827";
+    case "intermediate":
+      return "#1f2937";
+    case "advanced":
+      return "#374151";
+    case "tools":
+      return "#4b5563";
+    case "practice":
+      return "#6b7280";
+    case "projects":
+      return "#9ca3af";
+    default:
+      return "#111827";
+  }
+}
+
+CustomNode.displayName = "CustomNode";
 
 export default CustomNode;
