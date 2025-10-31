@@ -22,45 +22,45 @@ export default function RoadmapCard({ roadmap, onDelete }: RoadmapCardProps) {
 
   return (
     <Link href={`/roadmap/${roadmap.id}`}>
-      <Card className="group hover:shadow-lg transition-all duration-200 hover:border-blue-400 cursor-pointer relative">
-        <CardContent className="p-5">
-          {/* Delete button */}
-          <button
-            onClick={handleDelete}
-            className="absolute top-3 right-3 p-2 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-full transition-all z-10"
-            aria-label="Delete roadmap"
-          >
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </button>
+      <div className="group cursor-pointer relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl blur-lg opacity-0 group-hover:opacity-30 transition-all duration-300" />
+        <Card className="relative bg-white/80 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 border border-gray-200/50 rounded-2xl overflow-hidden">
+          <CardContent className="p-6">
+            <button
+              onClick={handleDelete}
+              className="absolute top-4 right-4 p-2 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-xl transition-all z-10 shadow-sm"
+              aria-label="Delete roadmap"
+            >
+              <Trash2 className="w-4 h-4 text-red-600" />
+            </button>
 
-          {/* Card content */}
-          <div className="space-y-3">
-            {/* Title */}
-            <h3 className="font-semibold text-lg text-gray-900 group-hover:text-blue-600 transition-colors pr-8 line-clamp-2">
-              {roadmap.title}
-            </h3>
-
-            {/* Metadata */}
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                <GitBranch className="w-4 h-4" />
-                <span>{roadmap.nodeCount} topics</span>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                  <GitBranch className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg text-gray-900 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-cyan-600 group-hover:bg-clip-text group-hover:text-transparent transition-all pr-8 line-clamp-2 mb-1">
+                    {roadmap.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium">{roadmap.nodeCount} topics to master</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
+
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Calendar className="w-3.5 h-3.5" />
                 <span>{formatDate(roadmap.createdAt)}</span>
               </div>
-            </div>
 
-            {/* Topic badge */}
-            <div className="pt-2">
-              <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
-                {roadmap.topic}
-              </span>
+              <div className="pt-2">
+                <span className="inline-block px-3 py-1.5 bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200/50">
+                  {roadmap.topic}
+                </span>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </Link>
   );
 }

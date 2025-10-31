@@ -39,6 +39,7 @@ export interface RoadmapNodeData {
   label: string;
   description: string;
   level: number;
+  order: number;
   category: string;
   resources: Resource[] | null;
   resourcesFetched: boolean;

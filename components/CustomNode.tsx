@@ -4,66 +4,71 @@ import { RoadmapNodeData } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const CustomNode = memo(({ data, selected }: NodeProps<RoadmapNodeData>) => {
-  // Category-based styling
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'fundamentals':
-        return 'bg-blue-100 border-blue-400 text-blue-900';
+        return 'from-blue-500 to-cyan-500 text-white';
+      case 'intermediate':
+        return 'from-cyan-500 to-emerald-500 text-white';
       case 'advanced':
-        return 'bg-purple-100 border-purple-400 text-purple-900';
+        return 'from-emerald-500 to-teal-500 text-white';
       case 'tools':
-        return 'bg-green-100 border-green-400 text-green-900';
+        return 'from-amber-500 to-orange-500 text-white';
       case 'practice':
-        return 'bg-orange-100 border-orange-400 text-orange-900';
+        return 'from-pink-500 to-rose-500 text-white';
       case 'projects':
-        return 'bg-red-100 border-red-400 text-red-900';
-      case 'theory':
-        return 'bg-indigo-100 border-indigo-400 text-indigo-900';
+        return 'from-violet-500 to-purple-500 text-white';
       default:
-        return 'bg-gray-100 border-gray-400 text-gray-900';
+        return 'from-gray-500 to-slate-500 text-white';
     }
   };
 
   const categoryColor = getCategoryColor(data.category);
 
   return (
-    <div
-      className={cn(
-        'px-4 py-3 rounded-lg border-2 shadow-md transition-all duration-200 min-w-[180px] max-w-[220px]',
-        categoryColor,
-        selected && 'ring-2 ring-offset-2 ring-blue-500 shadow-lg scale-105'
-      )}
-    >
-      {/* Handles for connections */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="w-3 h-3 !bg-gray-400"
-      />
+    <div className="relative group">
+      <div className={cn(
+        'absolute inset-0 rounded-2xl blur-md opacity-0 group-hover:opacity-60 transition-all duration-300',
+        `bg-gradient-to-r ${categoryColor.split(' ')[0]} ${categoryColor.split(' ')[1]}`
+      )} />
+      <div
+        className={cn(
+          'relative px-5 py-4 rounded-2xl border-2 shadow-lg transition-all duration-300 min-w-[200px] max-w-[240px] backdrop-blur-sm',
+          `bg-gradient-to-r ${categoryColor}`,
+          selected && 'ring-4 ring-white ring-offset-2 shadow-2xl scale-110 z-50'
+        )}
+      >
+        <Handle
+          type="target"
+          position={Position.Top}
+          className="w-3 h-3 !bg-white shadow-md"
+        />
 
-      {/* Node content */}
-      <div className="space-y-1">
-        {/* Level badge */}
-        <div className="text-xs font-medium opacity-70">
-          Level {data.level}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-full">
+              #{data.order}
+            </span>
+            <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded-full capitalize">
+              L{data.level}
+            </span>
+          </div>
+
+          <h3 className="font-bold text-sm leading-tight">
+            {data.label}
+          </h3>
+
+          <p className="text-xs opacity-90 capitalize font-medium">
+            {data.category}
+          </p>
         </div>
 
-        {/* Node title */}
-        <div className="font-semibold text-sm leading-tight">
-          {data.label}
-        </div>
-
-        {/* Category badge */}
-        <div className="text-xs opacity-70 capitalize">
-          {data.category}
-        </div>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="w-3 h-3 !bg-white shadow-md"
+        />
       </div>
-
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="w-3 h-3 !bg-gray-400"
-      />
     </div>
   );
 });

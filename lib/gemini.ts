@@ -1,13 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { RoadmapNode, RoadmapEdge } from './types';
 
-const apiKey = process.env.GOOGLE_AI_API_KEY;
+const apiKey = process.env.GOOGLE_AI_API_KEY || '';
 
-if (!apiKey) {
-  throw new Error('GOOGLE_AI_API_KEY environment variable is not set');
-}
-
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 /**
  * Generates a structured roadmap using Gemini AI
@@ -17,17 +13,21 @@ export async function generateRoadmapStructure(topic: string): Promise<{
   nodes: RoadmapNode[];
   edges: RoadmapEdge[];
 }> {
+  if (!genAI) {
+    throw new Error('GOOGLE_AI_API_KEY environment variable is not set');
+  }
+
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   const prompt = `You are an expert learning path designer. Create a comprehensive, structured learning roadmap for the topic: "${topic}".
 
 Requirements:
 1. Return ONLY valid JSON, no markdown formatting, no code blocks
-2. Create 15-25 nodes (topics and subtopics) with clear hierarchy
-3. Structure should be a directed acyclic graph (DAG) - no cycles
-4. Each node needs: unique id, title, description (2-4 sentences), level (1-5), category
-5. Include edges showing prerequisite relationships
-6. Calculate x,y positions for hierarchical tree layout (left-to-right flow)
+2. Create 15-25 nodes (topics and subtopics) with STRICT hierarchical structure
+3. Structure should be a tree (each node has exactly ONE parent, except root)
+4. Each node needs: unique id, title, description (2-4 sentences), level (1-5), category, order (sequential number within same level)
+5. Include edges showing parent-child relationships ONLY
+6. Calculate x,y positions for clean vertical tree layout (top-to-bottom flow)
 
 JSON structure:
 {
@@ -35,11 +35,12 @@ JSON structure:
     {
       "id": "node_1",
       "type": "custom",
-      "position": {"x": 100, "y": 200},
+      "position": {"x": 500, "y": 0},
       "data": {
         "label": "Topic Title",
         "description": "Detailed explanation of this topic",
         "level": 1,
+        "order": 1,
         "category": "fundamentals",
         "resources": null,
         "resourcesFetched": false
@@ -57,15 +58,19 @@ JSON structure:
   ]
 }
 
-Layout rules:
-- Level 1 (fundamentals): x=100, y values spaced 150px apart
-- Level 2: x=400
-- Level 3: x=700
-- Level 4+: x=1000
-- Space nodes vertically by 150-200px to avoid overlap
-- Ensure parent nodes connect to child nodes via edges
+CRITICAL Layout rules for clean tree structure:
+- Start with 1 root node at level 1 (x=500, y=0)
+- Level 1 nodes: y=0
+- Level 2 nodes: y=200
+- Level 3 nodes: y=400
+- Level 4 nodes: y=600
+- Level 5 nodes: y=800
+- Distribute nodes horizontally within each level evenly (x spacing: 250-350px)
+- Each node should have EXACTLY ONE incoming edge (except root)
+- Children of same parent should be grouped horizontally
+- Add "order" field (1, 2, 3...) to maintain learning sequence
 
-Categories to use: fundamentals, advanced, tools, practice, projects, theory
+Categories to use: fundamentals, intermediate, advanced, tools, practice, projects
 
 Generate the roadmap now. Return ONLY the JSON object, nothing else.`;
 
@@ -105,6 +110,10 @@ Generate the roadmap now. Return ONLY the JSON object, nothing else.`;
       }
       if (node.data.resourcesFetched === undefined) {
         node.data.resourcesFetched = false;
+      }
+      // Ensure order field is present
+      if (node.data.order === undefined) {
+        node.data.order = 1;
       }
     }
 
