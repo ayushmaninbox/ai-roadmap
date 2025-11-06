@@ -3,12 +3,12 @@
 import { CheckCircle2, Circle, ChevronRight, ChevronDown } from "lucide-react";
 import { RoadmapNode } from "@/lib/types";
 import type { Edge } from "reactflow";
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 interface TopicNavigationSidebarProps {
   nodes: RoadmapNode[];
   currentNodeId: string | null;
-  completedNodes: Set<string>;
+  completedResources: Record<string, Set<string>>; // { [nodeId]: Set<resourceId> }
   onNodeSelect: (nodeId: string) => void;
   edges?: Edge[];
 }
@@ -21,13 +21,87 @@ interface TreeNode {
 export default function TopicNavigationSidebar({
   nodes,
   currentNodeId,
-  completedNodes,
+  completedResources,
   onNodeSelect,
   edges = [],
 }: TopicNavigationSidebarProps) {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  // Initialize all nodes as expanded by default
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
+    const allExpanded = new Set<string>();
+    nodes.forEach((node) => allExpanded.add(node.id));
+    return allExpanded;
+  });
 
-  const tree = buildTree(nodes, edges);
+  const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Memoize tree to avoid rebuilding on every render
+  const tree = useMemo(() => buildTree(nodes, edges), [nodes, edges]);
+
+  // Function to get all parent node IDs for a given node
+  const findParents = (
+    currentNodes: TreeNode[],
+    targetId: string,
+    path: string[] = []
+  ): string[] | null => {
+    for (const treeNode of currentNodes) {
+      if (treeNode.node.id === targetId) {
+        return path;
+      }
+      const found = findParents(treeNode.children, targetId, [
+        ...path,
+        treeNode.node.id,
+      ]);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  };
+
+  const getParentNodeIds = (
+    nodeId: string,
+    treeNodes: TreeNode[]
+  ): string[] => {
+    const path = findParents(treeNodes, nodeId);
+    return path || [];
+  };
+
+  // Auto-expand parent nodes when a node is selected
+  useEffect(() => {
+    if (currentNodeId) {
+      const parentIds = getParentNodeIds(currentNodeId, tree);
+      setExpandedNodes((prev) => {
+        const newExpanded = new Set(prev);
+        parentIds.forEach((id) => newExpanded.add(id));
+        newExpanded.add(currentNodeId);
+        return newExpanded;
+      });
+
+      // Scroll to the selected node
+      setTimeout(() => {
+        const nodeElement = nodeRefs.current.get(currentNodeId);
+        if (nodeElement) {
+          nodeElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }, 100);
+    }
+  }, [currentNodeId, tree]);
+
+  // Update expanded nodes when nodes change
+  useEffect(() => {
+    setExpandedNodes((prev) => {
+      const newExpanded = new Set(prev);
+      nodes.forEach((node) => {
+        if (!newExpanded.has(node.id)) {
+          newExpanded.add(node.id);
+        }
+      });
+      return newExpanded;
+    });
+  }, [nodes]);
 
   const toggleExpand = (nodeId: string) => {
     const newExpanded = new Set(expandedNodes);
@@ -39,15 +113,58 @@ export default function TopicNavigationSidebar({
     setExpandedNodes(newExpanded);
   };
 
+  // Check if all resources for a node are completed
+  const isNodeCompleted = (node: RoadmapNode): boolean => {
+    const nodeResources = node.data.resources || [];
+    if (nodeResources.length === 0) return false;
+
+    const completedResourceIds =
+      completedResources[node.id] || new Set<string>();
+    // All resources must be completed
+    return nodeResources.every((resource) =>
+      completedResourceIds.has(resource.id)
+    );
+  };
+
+  // Calculate total completed resources and total resources
+  const getProgressStats = () => {
+    let totalResources = 0;
+    let completedCount = 0;
+
+    nodes.forEach((node) => {
+      const nodeResources = node.data.resources || [];
+      totalResources += nodeResources.length;
+
+      const completedResourceIds =
+        completedResources[node.id] || new Set<string>();
+      completedCount += nodeResources.filter((resource) =>
+        completedResourceIds.has(resource.id)
+      ).length;
+    });
+
+    return { totalResources, completedCount };
+  };
+
+  const progressStats = getProgressStats();
+
   const renderTreeNode = (treeNode: TreeNode, depth: number = 0) => {
     const { node, children } = treeNode;
     const isActive = node.id === currentNodeId;
-    const isCompleted = completedNodes.has(node.id);
+    const isCompleted = isNodeCompleted(node);
     const hasChildren = children.length > 0;
-    const isExpanded = expandedNodes.has(node.id) || depth === 0;
+    const isExpanded = expandedNodes.has(node.id);
 
     return (
-      <div key={node.id}>
+      <div
+        key={node.id}
+        ref={(el) => {
+          if (el) {
+            nodeRefs.current.set(node.id, el);
+          } else {
+            nodeRefs.current.delete(node.id);
+          }
+        }}
+      >
         <button
           onClick={() => onNodeSelect(node.id)}
           className={`
@@ -61,7 +178,7 @@ export default function TopicNavigationSidebar({
           `}
           style={{ paddingLeft: `${depth * 24 + 16}px` }}
         >
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             {isCompleted ? (
               <CheckCircle2
                 className={`w-5 h-5 ${
@@ -134,12 +251,21 @@ export default function TopicNavigationSidebar({
       <div className="p-4 border-b border-gray-200 bg-white">
         <h2 className="font-semibold text-sm text-gray-900">Learning path</h2>
         <p className="text-xs text-gray-600 mt-1">
-          {completedNodes.size} of {nodes.length} completed
+          {progressStats.completedCount} of {progressStats.totalResources}{" "}
+          resources completed
         </p>
         <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
           <div
             className="bg-gray-900 h-1.5 rounded-full transition-all duration-300"
-            style={{ width: `${(completedNodes.size / nodes.length) * 100}%` }}
+            style={{
+              width: `${
+                progressStats.totalResources > 0
+                  ? (progressStats.completedCount /
+                      progressStats.totalResources) *
+                    100
+                  : 0
+              }%`,
+            }}
           />
         </div>
       </div>

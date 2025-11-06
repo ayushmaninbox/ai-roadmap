@@ -42,9 +42,41 @@ export default function RoadmapCard({ roadmap, onDelete }: RoadmapCardProps) {
                   <h3 className="font-medium text-sm text-foreground group-hover:text-foreground pr-8 line-clamp-2 mb-0.5">
                     {roadmap.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mb-2">
                     {roadmap.nodeCount} topics
                   </p>
+                  {roadmap.completedCount !== undefined &&
+                    roadmap.totalResources !== undefined &&
+                    roadmap.completedCount > 0 &&
+                    roadmap.totalResources > 0 && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            Progress
+                          </span>
+                          <span className="text-[10px] font-medium text-foreground">
+                            {Math.round(
+                              (roadmap.completedCount /
+                                roadmap.totalResources) *
+                                100
+                            )}
+                            %
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1">
+                          <div
+                            className="bg-gray-900 h-1 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${
+                                (roadmap.completedCount /
+                                  roadmap.totalResources) *
+                                100
+                              }%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                 </div>
               </div>
 

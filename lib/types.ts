@@ -1,7 +1,12 @@
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from "reactflow";
 
 // Resource types
-export type ResourceType = 'youtube' | 'documentation' | 'article' | 'tutorial' | 'course';
+export type ResourceType =
+  | "youtube"
+  | "documentation"
+  | "article"
+  | "tutorial"
+  | "course";
 
 // Resource metadata interfaces
 export interface YouTubeMetadata {
@@ -21,7 +26,11 @@ export interface DocumentationMetadata {
   version?: string;
 }
 
-export type ResourceMetadata = YouTubeMetadata | ArticleMetadata | DocumentationMetadata | Record<string, never>;
+export type ResourceMetadata =
+  | YouTubeMetadata
+  | ArticleMetadata
+  | DocumentationMetadata
+  | Record<string, never>;
 
 // Resource interface
 export interface Resource {
@@ -61,6 +70,11 @@ export interface Roadmap {
   nodeCount: number;
   nodes: RoadmapNode[];
   edges: RoadmapEdge[];
+  completedResources?: Record<string, string[]>; // { [nodeId]: [resourceId1, resourceId2, ...] }
+  lastPosition?: {
+    nodeId: string;
+    resourceIndex: number;
+  }; // Last viewed position
 }
 
 // API request/response types
@@ -97,6 +111,8 @@ export interface RoadmapMetadata {
   topic: string;
   createdAt: string;
   nodeCount: number;
+  completedCount?: number; // Number of completed resources for progress display
+  totalResources?: number; // Total number of resources across all nodes
 }
 
 // Error types
@@ -105,7 +121,7 @@ export class RoadmapError extends Error {
 
   constructor(message: string, statusCode: number = 500) {
     super(message);
-    this.name = 'RoadmapError';
+    this.name = "RoadmapError";
     this.statusCode = statusCode;
   }
 }
@@ -115,7 +131,7 @@ export class OAuthError extends Error {
 
   constructor(message: string, statusCode: number = 500) {
     super(message);
-    this.name = 'OAuthError';
+    this.name = "OAuthError";
     this.statusCode = statusCode;
   }
 }

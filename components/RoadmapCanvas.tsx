@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from "react";
 import ReactFlow, {
   Controls,
   Background,
@@ -10,10 +10,10 @@ import ReactFlow, {
   Node,
   Edge,
   NodeMouseHandler,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
-import CustomNode from './CustomNode';
-import { RoadmapNodeData } from '@/lib/types';
+} from "reactflow";
+import "reactflow/dist/style.css";
+import CustomNode from "./CustomNode";
+import { RoadmapNodeData } from "@/lib/types";
 
 interface RoadmapCanvasProps {
   nodes: Node<RoadmapNodeData>[];
@@ -21,9 +21,22 @@ interface RoadmapCanvasProps {
   onNodeClick?: (node: Node<RoadmapNodeData>) => void;
 }
 
-export default function RoadmapCanvas({ nodes, edges, onNodeClick }: RoadmapCanvasProps) {
-  const [nodesState, , onNodesChange] = useNodesState(nodes);
-  const [edgesState, , onEdgesChange] = useEdgesState(edges);
+export default function RoadmapCanvas({
+  nodes,
+  edges,
+  onNodeClick,
+}: RoadmapCanvasProps) {
+  const [nodesState, setNodes, onNodesChange] = useNodesState(nodes);
+  const [edgesState, setEdges, onEdgesChange] = useEdgesState(edges);
+
+  // Sync nodes and edges when props change
+  useEffect(() => {
+    setNodes(nodes);
+  }, [nodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(edges);
+  }, [edges, setEdges]);
 
   // Register custom node type
   const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
@@ -52,7 +65,7 @@ export default function RoadmapCanvas({ nodes, edges, onNodeClick }: RoadmapCanv
         maxZoom={1.5}
         defaultEdgeOptions={{
           animated: false,
-          style: { stroke: '#94a3b8', strokeWidth: 2 },
+          style: { stroke: "#94a3b8", strokeWidth: 2 },
         }}
       >
         <Background

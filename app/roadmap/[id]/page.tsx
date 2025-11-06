@@ -11,7 +11,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
-import { Node } from "reactflow";
+import { Node, Edge } from "reactflow";
 import RoadmapCanvas from "@/components/RoadmapCanvas";
 import TopicNavigationSidebar from "@/components/TopicNavigationSidebar";
 import EmbeddedResourceViewer from "@/components/EmbeddedResourceViewer";
@@ -35,9 +35,12 @@ export default function RoadmapPage() {
   const [selectedResource, setSelectedResource] = useState<Resource | null>(
     null
   );
+  const [currentResourceIndex, setCurrentResourceIndex] = useState<number>(0);
   const [isLoadingResources, setIsLoadingResources] = useState(false);
-  const [completedNodes, setCompletedNodes] = useState<Set<string>>(new Set());
-  const [showTreeView, setShowTreeView] = useState(false);
+  const [completedResources, setCompletedResources] = useState<
+    Record<string, Set<string>>
+  >({});
+  const [showTreeView, setShowTreeView] = useState(true); // Start with mindmap visible
 
   useEffect(() => {
     const loadRoadmap = async () => {
@@ -47,11 +50,69 @@ export default function RoadmapPage() {
         const existingRoadmap = getRoadmap(id);
         if (existingRoadmap) {
           setRoadmap(existingRoadmap);
-          const firstNode = getSortedNodes(existingRoadmap.nodes)[0];
-          if (firstNode) {
-            setCurrentNodeId(firstNode.id);
-            await fetchResourcesForNode(firstNode, existingRoadmap);
+
+          // Load completed resources from the roadmap
+          if (existingRoadmap.completedResources) {
+            const resourcesMap: Record<string, Set<string>> = {};
+            Object.entries(existingRoadmap.completedResources).forEach(
+              ([nodeId, resourceIds]) => {
+                resourcesMap[nodeId] = new Set(resourceIds);
+              }
+            );
+            setCompletedResources(resourcesMap);
           }
+
+          // Restore last position if available
+          if (existingRoadmap.lastPosition) {
+            const { nodeId, resourceIndex } = existingRoadmap.lastPosition;
+            const node = existingRoadmap.nodes.find((n) => n.id === nodeId);
+            if (node) {
+              setCurrentNodeId(nodeId);
+              setCurrentResourceIndex(resourceIndex);
+              setShowTreeView(false);
+
+              // If resources are already fetched, restore the selected resource
+              if (
+                node.data.resourcesFetched &&
+                node.data.resources &&
+                node.data.resources.length > 0
+              ) {
+                const resource = node.data.resources[resourceIndex];
+                if (resource) {
+                  setSelectedResource(resource);
+                } else {
+                  // If index is out of bounds, use first resource
+                  setSelectedResource(node.data.resources[0]);
+                  setCurrentResourceIndex(0);
+                }
+              } else {
+                // Fetch resources if not already fetched
+                await fetchResourcesForNode(node, existingRoadmap);
+                // After fetching, restore the correct resource index
+                // We need to get the updated roadmap from state or wait for it
+                const restoredRoadmap = getRoadmap(id);
+                if (restoredRoadmap) {
+                  const updatedNode = restoredRoadmap.nodes.find(
+                    (n) => n.id === nodeId
+                  );
+                  if (
+                    updatedNode?.data.resources &&
+                    updatedNode.data.resources.length > 0
+                  ) {
+                    const restoreIndex = Math.min(
+                      resourceIndex,
+                      updatedNode.data.resources.length - 1
+                    );
+                    setCurrentResourceIndex(restoreIndex);
+                    setSelectedResource(
+                      updatedNode.data.resources[restoreIndex]
+                    );
+                  }
+                }
+              }
+            }
+          }
+
           setIsLoading(false);
         } else {
           setError("Roadmap not found");
@@ -86,14 +147,14 @@ export default function RoadmapPage() {
       }
 
       const newRoadmap = data.roadmap;
+      // Initialize completedResources as empty object for new roadmaps
+      if (!newRoadmap.completedResources) {
+        newRoadmap.completedResources = {};
+      }
       saveRoadmap(newRoadmap);
       setRoadmap(newRoadmap);
-
-      const firstNode = getSortedNodes(newRoadmap.nodes)[0];
-      if (firstNode) {
-        setCurrentNodeId(firstNode.id);
-        await fetchResourcesForNode(firstNode, newRoadmap);
-      }
+      // Start with mindmap view for new roadmaps too
+      setShowTreeView(true);
 
       router.replace(`/roadmap/${newRoadmap.id}`);
       setIsLoading(false);
@@ -113,6 +174,7 @@ export default function RoadmapPage() {
     if (node.data.resourcesFetched) {
       if (node.data.resources && node.data.resources.length > 0) {
         setSelectedResource(node.data.resources[0]);
+        setCurrentResourceIndex(0);
       }
       return;
     }
@@ -158,6 +220,7 @@ export default function RoadmapPage() {
 
         if (data.resources.length > 0) {
           setSelectedResource(data.resources[0]);
+          setCurrentResourceIndex(0);
         }
       }
     } catch (err) {
@@ -171,11 +234,25 @@ export default function RoadmapPage() {
     async (nodeId: string) => {
       setCurrentNodeId(nodeId);
       setSelectedResource(null);
+      setCurrentResourceIndex(0);
+      // Hide mindmap when node is selected
+      setShowTreeView(false);
 
       if (roadmap) {
         const node = roadmap.nodes.find((n) => n.id === nodeId);
         if (node) {
           await fetchResourcesForNode(node, roadmap);
+
+          // Save position when node is selected
+          const updatedRoadmap = {
+            ...roadmap,
+            lastPosition: {
+              nodeId: nodeId,
+              resourceIndex: 0,
+            },
+            updatedAt: new Date().toISOString(),
+          };
+          updateRoadmap(roadmap.id, updatedRoadmap);
         }
       }
     },
@@ -183,38 +260,251 @@ export default function RoadmapPage() {
   );
 
   const handleMarkComplete = () => {
-    if (currentNodeId) {
-      const newCompleted = new Set(completedNodes);
-      if (newCompleted.has(currentNodeId)) {
-        newCompleted.delete(currentNodeId);
+    if (currentNodeId && selectedResource && roadmap) {
+      const currentNode = roadmap.nodes.find((n) => n.id === currentNodeId);
+      if (!currentNode) return;
+
+      // Get current completed resources for this node
+      const nodeCompletedResources =
+        completedResources[currentNodeId] || new Set<string>();
+      const newCompleted = new Set(nodeCompletedResources);
+
+      // Toggle completion for the current resource
+      if (newCompleted.has(selectedResource.id)) {
+        newCompleted.delete(selectedResource.id);
       } else {
-        newCompleted.add(currentNodeId);
+        newCompleted.add(selectedResource.id);
       }
-      setCompletedNodes(newCompleted);
+
+      // Update completed resources state
+      const updatedCompletedResources = {
+        ...completedResources,
+        [currentNodeId]: newCompleted,
+      };
+      setCompletedResources(updatedCompletedResources);
+
+      // Save completed resources to localStorage
+      const completedResourcesForStorage: Record<string, string[]> = {};
+      Object.entries(updatedCompletedResources).forEach(
+        ([nodeId, resourceIds]) => {
+          if (resourceIds.size > 0) {
+            completedResourcesForStorage[nodeId] = Array.from(resourceIds);
+          }
+        }
+      );
+
+      // Also save current position
+      const updatedRoadmap = {
+        ...roadmap,
+        completedResources: completedResourcesForStorage,
+        lastPosition: {
+          nodeId: currentNodeId,
+          resourceIndex: currentResourceIndex,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      updateRoadmap(roadmap.id, updatedRoadmap);
+      setRoadmap(updatedRoadmap);
     }
   };
+
+  // Get DFS-ordered nodes
+  const getDFSNodes = useCallback(
+    (
+      nodes: Node<RoadmapNodeData>[],
+      edges: Edge[]
+    ): Node<RoadmapNodeData>[] => {
+      const nodeMap = new Map<string, Node<RoadmapNodeData>>();
+      const childrenMap = new Map<string, string[]>();
+      const roots: string[] = [];
+
+      // Build node map and find roots
+      nodes.forEach((node) => {
+        nodeMap.set(node.id, node);
+        childrenMap.set(node.id, []);
+      });
+
+      // Build children map
+      edges.forEach((edge) => {
+        const parentId = String(edge.source);
+        const childId = String(edge.target);
+        const children = childrenMap.get(parentId) || [];
+        children.push(childId);
+        childrenMap.set(parentId, children);
+      });
+
+      // Find root nodes (nodes with no incoming edges)
+      nodes.forEach((node) => {
+        const hasIncoming = edges.some((e) => String(e.target) === node.id);
+        if (!hasIncoming) {
+          roots.push(node.id);
+        }
+      });
+
+      // DFS traversal
+      const dfsOrder: Node<RoadmapNodeData>[] = [];
+      const visited = new Set<string>();
+
+      const dfs = (nodeId: string) => {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
+
+        const node = nodeMap.get(nodeId);
+        if (node) {
+          dfsOrder.push(node);
+        }
+
+        // Sort children by order for consistent traversal
+        const children = childrenMap.get(nodeId) || [];
+        const childNodes = children
+          .map((id) => nodeMap.get(id))
+          .filter((n): n is Node<RoadmapNodeData> => n !== undefined)
+          .sort((a, b) => {
+            if (a.data.level !== b.data.level) {
+              return a.data.level - b.data.level;
+            }
+            return a.data.order - b.data.order;
+          });
+
+        childNodes.forEach((child) => {
+          dfs(child.id);
+        });
+      };
+
+      // Start DFS from each root, sorted by order
+      const rootNodes = roots
+        .map((id) => nodeMap.get(id))
+        .filter((n): n is Node<RoadmapNodeData> => n !== undefined)
+        .sort((a, b) => {
+          if (a.data.level !== b.data.level) {
+            return a.data.level - b.data.level;
+          }
+          return a.data.order - b.data.order;
+        });
+
+      rootNodes.forEach((root) => dfs(root.id));
+
+      // If we have nodes that weren't visited (orphaned nodes), add them at the end
+      nodes.forEach((node) => {
+        if (!visited.has(node.id)) {
+          dfsOrder.push(node);
+        }
+      });
+
+      return dfsOrder;
+    },
+    []
+  );
 
   const handleNextTopic = () => {
     if (!roadmap || !currentNodeId) return;
 
-    const sortedNodes = getSortedNodes(roadmap.nodes);
-    const currentIndex = sortedNodes.findIndex((n) => n.id === currentNodeId);
+    const currentNode = roadmap.nodes.find((n) => n.id === currentNodeId);
+    if (!currentNode) return;
 
-    if (currentIndex < sortedNodes.length - 1) {
-      const nextNode = sortedNodes[currentIndex + 1];
+    // Check if there are more resources for current node
+    const resources = currentNode.data.resources || [];
+    if (resources.length > 0 && currentResourceIndex < resources.length - 1) {
+      // Move to next resource
+      const nextResourceIndex = currentResourceIndex + 1;
+      setCurrentResourceIndex(nextResourceIndex);
+      setSelectedResource(resources[nextResourceIndex]);
+
+      // Save position
+      const updatedRoadmap = {
+        ...roadmap,
+        lastPosition: {
+          nodeId: currentNodeId,
+          resourceIndex: nextResourceIndex,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      updateRoadmap(roadmap.id, updatedRoadmap);
+      return;
+    }
+
+    // All resources for current node are done, move to next node (DFS)
+    const dfsNodes = getDFSNodes(roadmap.nodes, roadmap.edges);
+    const currentIndex = dfsNodes.findIndex((n) => n.id === currentNodeId);
+
+    if (currentIndex < dfsNodes.length - 1) {
+      const nextNode = dfsNodes[currentIndex + 1];
       handleNodeSelect(nextNode.id);
+
+      // Save position
+      const updatedRoadmap = {
+        ...roadmap,
+        lastPosition: {
+          nodeId: nextNode.id,
+          resourceIndex: 0,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      updateRoadmap(roadmap.id, updatedRoadmap);
     }
   };
 
   const handlePreviousTopic = () => {
     if (!roadmap || !currentNodeId) return;
 
-    const sortedNodes = getSortedNodes(roadmap.nodes);
-    const currentIndex = sortedNodes.findIndex((n) => n.id === currentNodeId);
+    const currentNode = roadmap.nodes.find((n) => n.id === currentNodeId);
+    if (!currentNode) return;
+
+    // Check if we can go to previous resource
+    const resources = currentNode.data.resources || [];
+    if (currentResourceIndex > 0 && resources.length > 0) {
+      // Move to previous resource
+      const prevResourceIndex = currentResourceIndex - 1;
+      setCurrentResourceIndex(prevResourceIndex);
+      setSelectedResource(resources[prevResourceIndex]);
+
+      // Save position
+      const updatedRoadmap = {
+        ...roadmap,
+        lastPosition: {
+          nodeId: currentNodeId,
+          resourceIndex: prevResourceIndex,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      updateRoadmap(roadmap.id, updatedRoadmap);
+      return;
+    }
+
+    // Move to previous node (DFS)
+    const dfsNodes = getDFSNodes(roadmap.nodes, roadmap.edges);
+    const currentIndex = dfsNodes.findIndex((n) => n.id === currentNodeId);
 
     if (currentIndex > 0) {
-      const prevNode = sortedNodes[currentIndex - 1];
-      handleNodeSelect(prevNode.id);
+      const prevNode = dfsNodes[currentIndex - 1];
+      const prevNodeResources = prevNode.data.resources || [];
+      const prevResourceIndex =
+        prevNodeResources.length > 0 ? prevNodeResources.length - 1 : 0;
+
+      setCurrentNodeId(prevNode.id);
+      setCurrentResourceIndex(prevResourceIndex);
+      setShowTreeView(false);
+
+      if (prevNodeResources.length > 0) {
+        setSelectedResource(prevNodeResources[prevResourceIndex]);
+      } else {
+        setSelectedResource(null);
+        // Fetch resources if not already fetched
+        if (!prevNode.data.resourcesFetched) {
+          fetchResourcesForNode(prevNode, roadmap);
+        }
+      }
+
+      // Save position
+      const updatedRoadmap = {
+        ...roadmap,
+        lastPosition: {
+          nodeId: prevNode.id,
+          resourceIndex: prevResourceIndex,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      updateRoadmap(roadmap.id, updatedRoadmap);
     }
   };
 
@@ -255,10 +545,28 @@ export default function RoadmapPage() {
   }
 
   const currentNode = roadmap.nodes.find((n) => n.id === currentNodeId);
-  const sortedNodes = getSortedNodes(roadmap.nodes);
-  const currentIndex = sortedNodes.findIndex((n) => n.id === currentNodeId);
-  const isFirstTopic = currentIndex === 0;
-  const isLastTopic = currentIndex === sortedNodes.length - 1;
+  const dfsNodes = getDFSNodes(roadmap.nodes, roadmap.edges);
+  const currentIndex = currentNodeId
+    ? dfsNodes.findIndex((n) => n.id === currentNodeId)
+    : -1;
+
+  // Check if we can go next (either more resources or more nodes)
+  const canGoNext =
+    currentNodeId && currentNode
+      ? (currentNode.data.resources || []).length > 0 &&
+        currentResourceIndex < (currentNode.data.resources || []).length - 1
+        ? true
+        : currentIndex < dfsNodes.length - 1
+      : false;
+
+  // Check if we can go previous (either previous resource or previous node)
+  const canGoPrevious =
+    currentNodeId && currentNode
+      ? currentResourceIndex > 0 &&
+        (currentNode.data.resources || []).length > 0
+        ? true
+        : currentIndex > 0
+      : false;
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -308,7 +616,7 @@ export default function RoadmapPage() {
           <TopicNavigationSidebar
             nodes={roadmap.nodes}
             currentNodeId={currentNodeId}
-            completedNodes={completedNodes}
+            completedResources={completedResources}
             onNodeSelect={handleNodeSelect}
             edges={roadmap.edges}
           />
@@ -337,11 +645,18 @@ export default function RoadmapPage() {
                 <Button
                   onClick={handleMarkComplete}
                   variant={
-                    completedNodes.has(currentNodeId!) ? "default" : "outline"
+                    selectedResource &&
+                    currentNodeId &&
+                    completedResources[currentNodeId]?.has(selectedResource.id)
+                      ? "default"
+                      : "outline"
                   }
+                  disabled={!selectedResource}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  {completedNodes.has(currentNodeId!)
+                  {selectedResource &&
+                  currentNodeId &&
+                  completedResources[currentNodeId]?.has(selectedResource.id)
                     ? "Completed"
                     : "Mark complete"}
                 </Button>
@@ -394,30 +709,55 @@ export default function RoadmapPage() {
                   Available resources
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-2">
-                  {currentNode.data.resources.map((resource) => (
-                    <button
-                      key={resource.id}
-                      onClick={() => setSelectedResource(resource)}
-                      className={`
-                      shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border
-                      ${
-                        selectedResource?.id === resource.id
-                          ? "bg-gray-900 text-white border-gray-900"
-                          : "bg-white text-gray-700 hover:bg-gray-50"
-                      }
-                    `}
-                    >
-                      <span className="capitalize">{resource.type}</span>
-                      {resource.type === "youtube" &&
-                        resource.metadata &&
-                        "duration" in resource.metadata &&
-                        resource.metadata.duration && (
-                          <span className="ml-2 opacity-70">
-                            • {resource.metadata.duration}
-                          </span>
-                        )}
-                    </button>
-                  ))}
+                  {currentNode.data.resources.map((resource, index) => {
+                    const isCompleted = currentNodeId
+                      ? completedResources[currentNodeId]?.has(resource.id) ||
+                        false
+                      : false;
+                    return (
+                      <button
+                        key={resource.id}
+                        onClick={() => {
+                          setSelectedResource(resource);
+                          setCurrentResourceIndex(index);
+
+                          // Save position when resource is clicked
+                          if (roadmap && currentNodeId) {
+                            const updatedRoadmap = {
+                              ...roadmap,
+                              lastPosition: {
+                                nodeId: currentNodeId,
+                                resourceIndex: index,
+                              },
+                              updatedAt: new Date().toISOString(),
+                            };
+                            updateRoadmap(roadmap.id, updatedRoadmap);
+                          }
+                        }}
+                        className={`
+                        shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border flex items-center gap-1.5
+                        ${
+                          index === currentResourceIndex
+                            ? "bg-gray-900 text-white border-gray-900"
+                            : isCompleted
+                            ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                            : "bg-white text-gray-700 hover:bg-gray-50"
+                        }
+                      `}
+                      >
+                        {isCompleted && <CheckCircle2 className="w-3 h-3" />}
+                        <span className="capitalize">{resource.type}</span>
+                        {resource.type === "youtube" &&
+                          resource.metadata &&
+                          "duration" in resource.metadata &&
+                          resource.metadata.duration && (
+                            <span className="ml-1 opacity-70">
+                              • {resource.metadata.duration}
+                            </span>
+                          )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -426,15 +766,32 @@ export default function RoadmapPage() {
             <Button
               variant="outline"
               onClick={handlePreviousTopic}
-              disabled={isFirstTopic}
+              disabled={!canGoPrevious}
             >
-              Previous Topic
+              Previous{" "}
+              {currentNode && currentResourceIndex > 0 ? "Resource" : "Topic"}
             </Button>
             <div className="text-xs text-muted-foreground">
-              {currentIndex + 1} / {sortedNodes.length}
+              {currentNode &&
+              currentNode.data.resources &&
+              currentNode.data.resources.length > 0
+                ? `Resource ${currentResourceIndex + 1} / ${
+                    currentNode.data.resources.length
+                  }`
+                : ""}
+              {currentIndex >= 0 && (
+                <span className="ml-2">
+                  Topic {currentIndex + 1} / {dfsNodes.length}
+                </span>
+              )}
             </div>
-            <Button onClick={handleNextTopic} disabled={isLastTopic}>
-              Next Topic
+            <Button onClick={handleNextTopic} disabled={!canGoNext}>
+              Next{" "}
+              {currentNode &&
+              currentNode.data.resources &&
+              currentResourceIndex < currentNode.data.resources.length - 1
+                ? "Resource"
+                : "Topic"}
             </Button>
           </div>
         </div>

@@ -1,6 +1,6 @@
-import { Roadmap, RoadmapMetadata } from './types';
+import { Roadmap, RoadmapMetadata } from "./types";
 
-const STORAGE_PREFIX = 'studypath';
+const STORAGE_PREFIX = "studypath";
 const ROADMAPS_LIST_KEY = `${STORAGE_PREFIX}_roadmaps`;
 const MAX_ROADMAPS = 10;
 
@@ -9,7 +9,7 @@ const MAX_ROADMAPS = 10;
  */
 export function isStorageAvailable(): boolean {
   try {
-    const test = '__storage_test__';
+    const test = "__storage_test__";
     localStorage.setItem(test, test);
     localStorage.removeItem(test);
     return true;
@@ -24,7 +24,7 @@ export function isStorageAvailable(): boolean {
  */
 export function saveRoadmap(roadmap: Roadmap): void {
   if (!isStorageAvailable()) {
-    throw new Error('localStorage is not available');
+    throw new Error("localStorage is not available");
   }
 
   try {
@@ -32,13 +32,30 @@ export function saveRoadmap(roadmap: Roadmap): void {
     const roadmaps = getAllRoadmapsMetadata();
 
     // Check if roadmap already exists
-    const existingIndex = roadmaps.findIndex(r => r.id === roadmap.id);
+    const existingIndex = roadmaps.findIndex((r) => r.id === roadmap.id);
+
+    // Calculate completed resources count
+    let completedCount = 0;
+    let totalResources = 0;
+    if (roadmap.completedResources) {
+      Object.values(roadmap.completedResources).forEach((resourceIds) => {
+        completedCount += resourceIds.length;
+      });
+    }
+    roadmap.nodes.forEach((node) => {
+      if (node.data.resources) {
+        totalResources += node.data.resources.length;
+      }
+    });
+
     const metadata: RoadmapMetadata = {
       id: roadmap.id,
       title: roadmap.title,
       topic: roadmap.topic,
       createdAt: roadmap.createdAt,
       nodeCount: roadmap.nodeCount,
+      completedCount: completedCount,
+      totalResources: totalResources,
     };
 
     if (existingIndex >= 0) {
@@ -65,10 +82,10 @@ export function saveRoadmap(roadmap: Roadmap): void {
     const roadmapKey = `${STORAGE_PREFIX}_roadmap_${roadmap.id}`;
     localStorage.setItem(roadmapKey, JSON.stringify(roadmap));
   } catch (error) {
-    if (error instanceof Error && error.name === 'QuotaExceededError') {
-      throw new Error('Storage quota exceeded. Please delete old roadmaps.');
+    if (error instanceof Error && error.name === "QuotaExceededError") {
+      throw new Error("Storage quota exceeded. Please delete old roadmaps.");
     }
-    throw new Error('Failed to save roadmap');
+    throw new Error("Failed to save roadmap");
   }
 }
 
@@ -92,12 +109,29 @@ export function getRoadmap(id: string): Roadmap | null {
 
     // Validate structure
     if (!roadmap.id || !roadmap.nodes || !roadmap.edges) {
-      throw new Error('Invalid roadmap structure');
+      throw new Error("Invalid roadmap structure");
+    }
+
+    // Backward compatibility: migrate completedNodes to completedResources
+    if (
+      (roadmap as any).completedNodes &&
+      Array.isArray((roadmap as any).completedNodes)
+    ) {
+      // Old format: completedNodes was an array of node IDs
+      // We can't migrate this perfectly since we don't know which resources were completed
+      // So we'll just initialize completedResources as empty
+      roadmap.completedResources = {};
+      delete (roadmap as any).completedNodes;
+    }
+
+    // Ensure completedResources exists
+    if (!roadmap.completedResources) {
+      roadmap.completedResources = {};
     }
 
     return roadmap;
   } catch (error) {
-    console.error('Failed to load roadmap:', error);
+    console.error("Failed to load roadmap:", error);
     // Remove corrupted data
     deleteRoadmap(id);
     return null;
@@ -120,7 +154,7 @@ export function getAllRoadmapsMetadata(): RoadmapMetadata[] {
 
     return JSON.parse(data) as RoadmapMetadata[];
   } catch (error) {
-    console.error('Failed to load roadmaps list:', error);
+    console.error("Failed to load roadmaps list:", error);
     // Reset corrupted list
     localStorage.removeItem(ROADMAPS_LIST_KEY);
     return [];
@@ -133,7 +167,7 @@ export function getAllRoadmapsMetadata(): RoadmapMetadata[] {
 export function getAllRoadmaps(): Roadmap[] {
   const metadata = getAllRoadmapsMetadata();
   return metadata
-    .map(m => getRoadmap(m.id))
+    .map((m) => getRoadmap(m.id))
     .filter((roadmap): roadmap is Roadmap => roadmap !== null);
 }
 
@@ -148,14 +182,14 @@ export function deleteRoadmap(id: string): void {
   try {
     // Remove from list
     const roadmaps = getAllRoadmapsMetadata();
-    const filtered = roadmaps.filter(r => r.id !== id);
+    const filtered = roadmaps.filter((r) => r.id !== id);
     localStorage.setItem(ROADMAPS_LIST_KEY, JSON.stringify(filtered));
 
     // Remove full roadmap
     const roadmapKey = `${STORAGE_PREFIX}_roadmap_${id}`;
     localStorage.removeItem(roadmapKey);
   } catch (error) {
-    console.error('Failed to delete roadmap:', error);
+    console.error("Failed to delete roadmap:", error);
   }
 }
 
@@ -166,7 +200,7 @@ export function deleteRoadmap(id: string): void {
 export function updateRoadmap(id: string, updates: Partial<Roadmap>): void {
   const roadmap = getRoadmap(id);
   if (!roadmap) {
-    throw new Error('Roadmap not found');
+    throw new Error("Roadmap not found");
   }
 
   const updated: Roadmap = {
@@ -187,7 +221,7 @@ export function clearAllRoadmaps(): void {
   }
 
   const roadmaps = getAllRoadmapsMetadata();
-  roadmaps.forEach(r => deleteRoadmap(r.id));
+  roadmaps.forEach((r) => deleteRoadmap(r.id));
   localStorage.removeItem(ROADMAPS_LIST_KEY);
 }
 
