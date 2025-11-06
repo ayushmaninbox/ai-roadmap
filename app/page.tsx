@@ -10,11 +10,25 @@ import {
   TrendingUp,
   Zap,
   Target,
+  Upload,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import RoadmapCard from "@/components/RoadmapCard";
-import { getAllRoadmapsMetadata, deleteRoadmap } from "@/lib/storage";
+import {
+  getAllRoadmapsMetadata,
+  deleteRoadmap,
+  importRoadmap,
+} from "@/lib/storage";
 import { validateTopic } from "@/lib/utils";
 import { RoadmapMetadata } from "@/lib/types";
 
@@ -32,6 +46,9 @@ export default function Home() {
   const [topic, setTopic] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [roadmaps, setRoadmaps] = useState<RoadmapMetadata[]>([]);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
 
   useEffect(() => {
     const savedRoadmaps = getAllRoadmapsMetadata();
@@ -63,6 +80,97 @@ export default function Home() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleGenerateRoadmap();
+    }
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input
+    e.target.value = "";
+
+    setImportError(null);
+    setImportSuccess(false);
+
+    // Validate file type
+    if (!file.name.endsWith(".json") && file.type !== "application/json") {
+      setImportError("Please select a JSON file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const jsonData = event.target?.result as string;
+        if (!jsonData || jsonData.trim().length === 0) {
+          setImportError("File is empty");
+          return;
+        }
+
+        const result = importRoadmap(jsonData);
+
+        if (result.success && result.roadmap) {
+          setImportSuccess(true);
+          setRoadmaps(getAllRoadmapsMetadata());
+          const importedRoadmap = result.roadmap;
+          // Close dialog after a short delay
+          setTimeout(() => {
+            setIsImportDialogOpen(false);
+            setImportSuccess(false);
+            setImportError(null);
+            // Navigate to the imported roadmap
+            router.push(`/roadmap/${importedRoadmap.id}`);
+          }, 1500);
+        } else {
+          setImportError(result.error || "Failed to import roadmap");
+        }
+      } catch (err) {
+        setImportError(
+          err instanceof Error ? err.message : "Failed to read file"
+        );
+      }
+    };
+
+    reader.onerror = () => {
+      setImportError("Failed to read file");
+    };
+
+    reader.readAsText(file);
+  };
+
+  const handleImportText = () => {
+    const textarea = document.getElementById(
+      "import-textarea"
+    ) as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const jsonData = textarea.value.trim();
+    if (!jsonData) {
+      setImportError("Please paste JSON data");
+      return;
+    }
+
+    setImportError(null);
+    setImportSuccess(false);
+
+    const result = importRoadmap(jsonData);
+
+    if (result.success && result.roadmap) {
+      setImportSuccess(true);
+      setRoadmaps(getAllRoadmapsMetadata());
+      textarea.value = "";
+      const importedRoadmap = result.roadmap;
+      // Close dialog after a short delay
+      setTimeout(() => {
+        setIsImportDialogOpen(false);
+        setImportSuccess(false);
+        setImportError(null);
+        // Navigate to the imported roadmap
+        router.push(`/roadmap/${importedRoadmap.id}`);
+      }, 1500);
+    } else {
+      setImportError(result.error || "Failed to import roadmap");
     }
   };
 
@@ -181,12 +289,109 @@ export default function Home() {
             <h2 className="text-xl font-semibold text-foreground">
               Your learning paths
             </h2>
-            {roadmaps.length > 0 && (
-              <div className="text-xs text-muted-foreground font-medium">
-                {roadmaps.length}{" "}
-                {roadmaps.length === 1 ? "roadmap" : "roadmaps"}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {roadmaps.length > 0 && (
+                <div className="text-xs text-muted-foreground font-medium">
+                  {roadmaps.length}{" "}
+                  {roadmaps.length === 1 ? "roadmap" : "roadmaps"}
+                </div>
+              )}
+              <Dialog
+                open={isImportDialogOpen}
+                onOpenChange={(open) => {
+                  setIsImportDialogOpen(open);
+                  if (!open) {
+                    // Reset state when dialog closes
+                    setImportError(null);
+                    setImportSuccess(false);
+                    const textarea = document.getElementById(
+                      "import-textarea"
+                    ) as HTMLTextAreaElement;
+                    if (textarea) {
+                      textarea.value = "";
+                    }
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Import Roadmap</DialogTitle>
+                    <DialogDescription>
+                      Import a roadmap from a JSON file or paste JSON data
+                      below.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    {/* File Upload */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Upload JSON File
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept=".json,application/json"
+                          onChange={handleImportFile}
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t"></span>
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-2 text-muted-foreground">
+                          Or
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Text Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Paste JSON Data
+                      </label>
+                      <textarea
+                        id="import-textarea"
+                        className="w-full min-h-[200px] px-3 py-2 text-sm border rounded-md resize-y font-mono"
+                        placeholder="Paste your roadmap JSON here..."
+                      />
+                      <Button
+                        onClick={handleImportText}
+                        className="w-full mt-2"
+                        variant="default"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Import from Text
+                      </Button>
+                    </div>
+
+                    {/* Error Message */}
+                    {importError && (
+                      <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                        {importError}
+                      </div>
+                    )}
+
+                    {/* Success Message */}
+                    {importSuccess && (
+                      <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+                        Roadmap imported successfully! Redirecting...
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
           {roadmaps.length === 0 ? (
             <div className="text-center py-16 bg-white border rounded-xl">

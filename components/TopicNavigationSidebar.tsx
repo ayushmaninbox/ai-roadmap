@@ -127,19 +127,34 @@ export default function TopicNavigationSidebar({
   };
 
   // Calculate total completed resources and total resources
+  // We estimate that each node will have ~5 resources (as per API)
+  // If resources have been fetched, use actual count, otherwise estimate
   const getProgressStats = () => {
     let totalResources = 0;
     let completedCount = 0;
+    const ESTIMATED_RESOURCES_PER_NODE = 5;
 
     nodes.forEach((node) => {
       const nodeResources = node.data.resources || [];
-      totalResources += nodeResources.length;
+      const nodeResourceCount = nodeResources.length;
 
-      const completedResourceIds =
-        completedResources[node.id] || new Set<string>();
-      completedCount += nodeResources.filter((resource) =>
-        completedResourceIds.has(resource.id)
-      ).length;
+      // If resources have been fetched, use actual count
+      // Otherwise, estimate based on typical resource count per node
+      if (node.data.resourcesFetched && nodeResourceCount > 0) {
+        totalResources += nodeResourceCount;
+      } else {
+        // Estimate: most nodes have ~5 resources
+        totalResources += ESTIMATED_RESOURCES_PER_NODE;
+      }
+
+      // Count completed resources (only for fetched nodes)
+      if (nodeResourceCount > 0) {
+        const completedResourceIds =
+          completedResources[node.id] || new Set<string>();
+        completedCount += nodeResources.filter((resource) =>
+          completedResourceIds.has(resource.id)
+        ).length;
+      }
     });
 
     return { totalResources, completedCount };
@@ -172,9 +187,11 @@ export default function TopicNavigationSidebar({
             ${
               isActive
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : isCompleted
+                ? "bg-green-50 hover:bg-green-100 border-l-2 border-green-300"
                 : "hover:bg-gray-50"
             }
-            ${depth > 0 ? "border-l-2 border-gray-200" : ""}
+            ${depth > 0 && !isCompleted ? "border-l-2 border-gray-200" : ""}
           `}
           style={{ paddingLeft: `${depth * 24 + 16}px` }}
         >
@@ -198,14 +215,22 @@ export default function TopicNavigationSidebar({
             <div className="flex items-center gap-2">
               <span
                 className={`text-xs font-medium ${
-                  isActive ? "text-white/80" : "text-gray-500"
+                  isActive
+                    ? "text-white/80"
+                    : isCompleted
+                    ? "text-green-600"
+                    : "text-gray-500"
                 }`}
               >
                 {node.data.order}
               </span>
               <h4
                 className={`font-medium text-sm truncate ${
-                  isActive ? "text-white" : "text-gray-900"
+                  isActive
+                    ? "text-white"
+                    : isCompleted
+                    ? "text-green-700"
+                    : "text-gray-900"
                 }`}
               >
                 {node.data.label}
@@ -213,7 +238,11 @@ export default function TopicNavigationSidebar({
             </div>
             <p
               className={`text-xs ${
-                isActive ? "text-white/70" : "text-gray-500"
+                isActive
+                  ? "text-white/70"
+                  : isCompleted
+                  ? "text-green-600"
+                  : "text-gray-500"
               } capitalize`}
             >
               {node.data.category}

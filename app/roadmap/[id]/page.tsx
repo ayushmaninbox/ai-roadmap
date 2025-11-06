@@ -9,6 +9,9 @@ import {
   Maximize2,
   LayoutGrid,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
 } from "lucide-react";
 import Link from "next/link";
 import { Node, Edge } from "reactflow";
@@ -41,6 +44,9 @@ export default function RoadmapPage() {
     Record<string, Set<string>>
   >({});
   const [showTreeView, setShowTreeView] = useState(true); // Start with mindmap visible
+  const [sidebarWidth, setSidebarWidth] = useState(320); // Default width in pixels
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     const loadRoadmap = async () => {
@@ -126,6 +132,39 @@ export default function RoadmapPage() {
 
     loadRoadmap();
   }, [id, topic, router]);
+
+  // Handle sidebar resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const newWidth = e.clientX;
+      const minWidth = 200;
+      const maxWidth = 600;
+
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
 
   const generateRoadmap = async (topicToGenerate: string) => {
     setIsLoading(true);
@@ -611,8 +650,18 @@ export default function RoadmapPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className="w-80 shrink-0">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Resizable Sidebar */}
+        <div
+          className={`relative transition-all duration-200 ${
+            isSidebarCollapsed ? "w-0" : ""
+          }`}
+          style={{
+            width: isSidebarCollapsed ? "0" : `${sidebarWidth}px`,
+            minWidth: isSidebarCollapsed ? "0" : "200px",
+            maxWidth: isSidebarCollapsed ? "0" : "600px",
+          }}
+        >
           <TopicNavigationSidebar
             nodes={roadmap.nodes}
             currentNodeId={currentNodeId}
@@ -620,7 +669,36 @@ export default function RoadmapPage() {
             onNodeSelect={handleNodeSelect}
             edges={roadmap.edges}
           />
+
+          {/* Resize Handle */}
+          {!isSidebarCollapsed && (
+            <div
+              className="absolute right-0 top-0 w-1 h-full bg-gray-200 hover:bg-gray-300 cursor-col-resize group"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+              }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-16 bg-gray-400 group-hover:bg-gray-500 rounded-r-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          )}
         </div>
+
+        {/* Collapse/Expand Button */}
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1.5 bg-white border border-gray-300 rounded-r-md shadow-sm hover:bg-gray-50 transition-all duration-200"
+          style={{
+            left: isSidebarCollapsed ? "0" : `${sidebarWidth - 1}px`,
+          }}
+          title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isSidebarCollapsed ? (
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          ) : (
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          )}
+        </button>
 
         <div className="flex-1 flex flex-col overflow-hidden">
           {currentNode && (

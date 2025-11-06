@@ -47,7 +47,6 @@ export default function RoadmapCard({ roadmap, onDelete }: RoadmapCardProps) {
                   </p>
                   {roadmap.completedCount !== undefined &&
                     roadmap.totalResources !== undefined &&
-                    roadmap.completedCount > 0 &&
                     roadmap.totalResources > 0 && (
                       <div className="mt-2">
                         <div className="flex items-center justify-between mb-1">
@@ -55,12 +54,8 @@ export default function RoadmapCard({ roadmap, onDelete }: RoadmapCardProps) {
                             Progress
                           </span>
                           <span className="text-[10px] font-medium text-foreground">
-                            {Math.round(
-                              (roadmap.completedCount /
-                                roadmap.totalResources) *
-                                100
-                            )}
-                            %
+                            {roadmap.completedCount} of {roadmap.totalResources}{" "}
+                            resources
                           </span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-1">
@@ -68,12 +63,24 @@ export default function RoadmapCard({ roadmap, onDelete }: RoadmapCardProps) {
                             className="bg-gray-900 h-1 rounded-full transition-all duration-300"
                             style={{
                               width: `${
-                                (roadmap.completedCount /
-                                  roadmap.totalResources) *
-                                100
+                                roadmap.totalResources > 0
+                                  ? (roadmap.completedCount /
+                                      roadmap.totalResources) *
+                                    100
+                                  : 0
                               }%`,
                             }}
                           />
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1 text-right">
+                          {Math.round(
+                            roadmap.totalResources > 0
+                              ? (roadmap.completedCount /
+                                  roadmap.totalResources) *
+                                  100
+                              : 0
+                          )}
+                          %
                         </div>
                       </div>
                     )}

@@ -1,4 +1,5 @@
 import { Roadmap, RoadmapMetadata } from "./types";
+import { v4 as uuidv4 } from "uuid";
 
 const STORAGE_PREFIX = "studypath";
 const ROADMAPS_LIST_KEY = `${STORAGE_PREFIX}_roadmaps`;
@@ -35,16 +36,28 @@ export function saveRoadmap(roadmap: Roadmap): void {
     const existingIndex = roadmaps.findIndex((r) => r.id === roadmap.id);
 
     // Calculate completed resources count
+    // Use same logic as sidebar: estimate 5 resources per node if not fetched
     let completedCount = 0;
     let totalResources = 0;
+    const ESTIMATED_RESOURCES_PER_NODE = 5;
+
     if (roadmap.completedResources) {
       Object.values(roadmap.completedResources).forEach((resourceIds) => {
         completedCount += resourceIds.length;
       });
     }
+
     roadmap.nodes.forEach((node) => {
-      if (node.data.resources) {
-        totalResources += node.data.resources.length;
+      const nodeResources = node.data.resources || [];
+      const nodeResourceCount = nodeResources.length;
+
+      // If resources have been fetched, use actual count
+      // Otherwise, estimate based on typical resource count per node
+      if (node.data.resourcesFetched && nodeResourceCount > 0) {
+        totalResources += nodeResourceCount;
+      } else {
+        // Estimate: most nodes have ~5 resources
+        totalResources += ESTIMATED_RESOURCES_PER_NODE;
       }
     });
 
@@ -238,4 +251,103 @@ export function getStorageInfo(): {
     roadmapCount: getAllRoadmapsMetadata().length,
     maxRoadmaps: MAX_ROADMAPS,
   };
+}
+
+/**
+ * Imports a roadmap from JSON data
+ * Validates the structure and saves it to localStorage
+ */
+export function importRoadmap(jsonData: string): {
+  success: boolean;
+  roadmap?: Roadmap;
+  error?: string;
+} {
+  if (!isStorageAvailable()) {
+    return {
+      success: false,
+      error: "localStorage is not available",
+    };
+  }
+
+  try {
+    const data = JSON.parse(jsonData);
+    const roadmap = data as Roadmap;
+
+    // Validate structure
+    if (!roadmap.nodes || !roadmap.edges) {
+      return {
+        success: false,
+        error:
+          "Invalid roadmap structure: missing required fields (nodes, edges)",
+      };
+    }
+
+    // Validate nodes structure
+    if (!Array.isArray(roadmap.nodes) || roadmap.nodes.length === 0) {
+      return {
+        success: false,
+        error: "Invalid roadmap structure: nodes must be a non-empty array",
+      };
+    }
+
+    // Validate edges structure
+    if (!Array.isArray(roadmap.edges)) {
+      return {
+        success: false,
+        error: "Invalid roadmap structure: edges must be an array",
+      };
+    }
+
+    // Ensure required fields exist
+    if (!roadmap.topic || !roadmap.title) {
+      return {
+        success: false,
+        error: "Invalid roadmap structure: missing topic or title",
+      };
+    }
+
+    // Ensure completedResources exists
+    if (!roadmap.completedResources) {
+      roadmap.completedResources = {};
+    }
+
+    // Ensure lastPosition exists
+    if (!roadmap.lastPosition) {
+      roadmap.lastPosition = undefined;
+    }
+
+    // Update timestamps
+    const now = new Date().toISOString();
+    if (!roadmap.createdAt) {
+      roadmap.createdAt = now;
+    }
+    roadmap.updatedAt = now;
+
+    // Ensure nodeCount matches actual node count
+    roadmap.nodeCount = roadmap.nodes.length;
+
+    // Generate a new ID to avoid conflicts with existing roadmaps
+    // This ensures imported roadmaps don't overwrite existing ones
+    roadmap.id = uuidv4();
+
+    // Save the roadmap
+    saveRoadmap(roadmap);
+
+    return {
+      success: true,
+      roadmap,
+    };
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return {
+        success: false,
+        error: "Invalid JSON format",
+      };
+    }
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to import roadmap",
+    };
+  }
 }
